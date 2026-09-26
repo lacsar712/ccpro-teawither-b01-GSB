@@ -26,6 +26,18 @@ class TroughForm(forms.ModelForm):
             "status": forms.Select(attrs={"class": "input"}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # 帮助文案由模型中的允许迁移边派生，与判定逻辑同源
+        labels = dict(Trough.STATUS_CHOICES)
+        edges = "；".join(
+            f"「{labels[src]}」→ {'、'.join(f'「{labels[d]}」' for d in dsts)}"
+            for src, dsts in Trough.ALLOWED_TRANSITIONS.items()
+        )
+        self.fields["status"].help_text = (
+            f"允许的状态迁移：{edges}。非法迁移将被拒绝。"
+        )
+
 
 class WitherBatchForm(forms.ModelForm):
     class Meta:

@@ -22,17 +22,15 @@ def _wants_htmx(request):
 
 @login_required
 def home(request):
+    # 状态卡数据与槽列表按状态过滤同源（均来自 Trough.status_summary / status 字段）
+    status_counts = Trough.status_summary()
     context = {
         "garden_count": Garden.objects.count(),
         "trough_count": Trough.objects.count(),
         "batch_count": WitherBatch.objects.count(),
-        "ready_count": Trough.objects.filter(status=Trough.STATUS_READY).count(),
-        "withering_count": Trough.objects.filter(
-            status=Trough.STATUS_WITHERING
-        ).count(),
-        "loading_count": Trough.objects.filter(
-            status=Trough.STATUS_LOADING
-        ).count(),
+        "ready_count": status_counts[Trough.STATUS_READY],
+        "withering_count": status_counts[Trough.STATUS_WITHERING],
+        "loading_count": status_counts[Trough.STATUS_LOADING],
     }
     return render(request, "home.html", context)
 
@@ -101,7 +99,26 @@ class TroughListView(LoginRequiredMixin, ListView):
     context_object_name = "troughs"
 
     def get_queryset(self):
-        return Trough.objects.select_related("garden").all()
+        queryset = Trough.objects.select_related("garden").all()
+        # 按状态过滤；合法状态值之外一律返回全部，避免伪造参数造成口径偏差
+        self.status_filter = self.request.GET.get("status", "")
+        if self.status_filter in dict(Trough.STATUS_CHOICES):
+            queryset = queryset.filter(status=self.status_filter)
+        else:
+            self.status_filter = ""
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # 状态卡计数与当前过滤页同源：全部来自 Trough.status_summary()
+        counts = Trough.status_summary()
+        context["status_cards"] = [
+            {"value": value, "label": label, "count": counts[value]}
+            for value, label in Trough.STATUS_CHOICES
+        ]
+        context["total_count"] = sum(counts.values())
+        context["status_filter"] = self.status_filter
+        return context
 
     def get(self, request, *args, **kwargs):
         self.object_list = self.get_queryset()

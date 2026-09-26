@@ -158,6 +158,22 @@ a:hover {
   text-align: center;
 }
 
+a.stat {
+  color: inherit;
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+a.stat:hover {
+  border-color: var(--tea-green);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+}
+
+.stat-active {
+  border-color: var(--tea-green);
+  box-shadow: inset 0 0 0 1px var(--tea-green);
+}
+
 .stat .num {
   font-size: 1.75rem;
   font-weight: 700;

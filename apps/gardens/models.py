@@ -26,6 +26,17 @@ class Trough(models.Model):
         (STATUS_READY, "可下槽"),
     ]
 
+    # 允许的状态迁移边（唯一权威定义，表单/模型校验/列表/统计全部由此派生）：
+    #   装叶中 -> 萎凋中
+    #   萎凋中 -> 可下槽（且最新批次实测含水率已填且 <= READY_MAX_MOISTURE）
+    #   可下槽 -> 装叶中
+    ALLOWED_TRANSITIONS = {
+        STATUS_LOADING: (STATUS_WITHERING,),
+        STATUS_WITHERING: (STATUS_READY,),
+        STATUS_READY: (STATUS_LOADING,),
+    }
+    READY_MAX_MOISTURE = 40
+
     garden = models.ForeignKey(
         Garden,
         on_delete=models.CASCADE,
@@ -59,10 +70,49 @@ class Trough(models.Model):
     def latest_batch(self):
         return self.batches.order_by("-startedAt", "-id").first()
 
-    def clean(self):
-        super().clean()
-        if self.status != self.STATUS_READY:
-            return
+    @classmethod
+    def status_label(cls, status):
+        return dict(cls.STATUS_CHOICES).get(status, status)
+
+    @classmethod
+    def transition_error(cls, from_status, to_status, latest_batch=None):
+        """改态判定的唯一入口。返回 None 表示允许，否则返回中文错误说明。"""
+        if to_status == from_status:
+            return None
+        allowed = cls.ALLOWED_TRANSITIONS.get(from_status, ())
+        if to_status not in allowed:
+            allowed_text = "、".join(
+                f"「{cls.status_label(s)}」" for s in allowed
+            ) or "（无）"
+            return (
+                f"非法状态迁移：不能从「{cls.status_label(from_status)}」"
+                f"直接变更为「{cls.status_label(to_status)}」。"
+                f"允许的迁移目标：{allowed_text}。"
+            )
+        if to_status == cls.STATUS_READY:
+            if (
+                latest_batch is None
+                or latest_batch.actualMoisture is None
+                or latest_batch.actualMoisture > cls.READY_MAX_MOISTURE
+            ):
+                return (
+                    "无法设为可下槽：最新萎凋批次的实测含水率必须已填写"
+                    f"且不超过 {cls.READY_MAX_MOISTURE}%。"
+                )
+        return None
+
+    def status_transition_error(self, to_status):
+        """以数据库中的当前状态为起点，校验能否迁移到 to_status。"""
+        if self.pk:
+            from_status = (
+                Trough.objects.filter(pk=self.pk)
+                .values_list("status", flat=True)
+                .first()
+                or self.STATUS_LOADING
+            )
+        else:
+            # 新槽位尚未入库，视为从初始状态「装叶中」出发
+            from_status = self.STATUS_LOADING
         latest = None
         if self.pk:
             latest = (
@@ -70,12 +120,21 @@ class Trough(models.Model):
                 .order_by("-startedAt", "-id")
                 .first()
             )
-        if latest is None or latest.actualMoisture is None or latest.actualMoisture > 40:
-            raise ValidationError(
-                {
-                    "status": "无法设为可下槽：最新萎凋批次的实测含水率为空或高于 40%。"
-                }
-            )
+        return self.transition_error(from_status, to_status, latest)
+
+    @classmethod
+    def status_summary(cls):
+        """各状态槽位数：首页状态卡与槽列表状态过滤共用同一数据源。"""
+        counts = {status: 0 for status, _ in cls.STATUS_CHOICES}
+        for row in cls.objects.values("status").annotate(n=models.Count("id")):
+            counts[row["status"]] = row["n"]
+        return counts
+
+    def clean(self):
+        super().clean()
+        error = self.status_transition_error(self.status)
+        if error:
+            raise ValidationError({"status": error})
 
     def save(self, *args, **kwargs):
         self.full_clean()

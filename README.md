@@ -54,7 +54,13 @@ python manage.py runserver 0.0.0.0:4100
 2. **Trough（萎凋槽）**：归属茶园、`troughCode`、`cultivar`、`loadKg`、状态 `loading|withering|ready`；同一茶园内槽位编号唯一
 3. **WitherBatch（萎凋批次）**：归属槽位、`startedAt`、`targetMoisture`、`actualMoisture`（可空）、`rollGrade`
 
-**业务规则**：将槽位状态设为 `ready`（可下槽）时，若最新批次的 `actualMoisture` 为空或大于 40，抛出中文 `ValidationError`。
+**业务规则**：槽位状态迁移只允许三条边，其余迁移一律拒绝并返回中文说明：
+
+- `loading`（装叶中）→ `withering`（萎凋中）
+- `withering`（萎凋中）→ `ready`（可下槽），且最新批次的 `actualMoisture` 必须已填写且 ≤ 40
+- `ready`（可下槽）→ `loading`（装叶中）
+
+判定集中在 `Trough.transition_error`（`apps/gardens/models.py`），模型校验、表单、列表过滤与首页状态卡统计全部由此派生；首页三张状态卡与槽列表按状态过滤的行数同源，改态后误差为 0。
 
 ## 种子数据
 

@@ -5,13 +5,32 @@
   <h1>萎凋槽</h1>
   <div class="actions">
     <button class="btn btn-secondary btn-sm"
-            hx-get="{% url 'trough_list' %}"
+            hx-get="{% url 'trough_list' %}{% if status_filter %}?status={{ status_filter }}{% endif %}"
             hx-target="#trough-table"
             hx-swap="innerHTML">刷新列表</button>
     <a class="btn" href="{% url 'trough_create' %}">新建槽位</a>
   </div>
 </div>
+<div class="card" style="margin-bottom:1rem">
+  <div class="stats" style="margin:0">
+    <a class="stat{% if not status_filter %} stat-active{% endif %}" style="text-decoration:none"
+       href="{% url 'trough_list' %}"
+       hx-get="{% url 'trough_list' %}" hx-target="#trough-table" hx-swap="innerHTML" hx-push-url="true">
+      <div class="num">{{ total_count }}</div><div class="label">全部</div>
+    </a>
+    {% for card in status_cards %}
+    <a class="stat{% if status_filter == card.value %} stat-active{% endif %}" style="text-decoration:none"
+       href="{% url 'trough_list' %}?status={{ card.value }}"
+       hx-get="{% url 'trough_list' %}?status={{ card.value }}" hx-target="#trough-table" hx-swap="innerHTML" hx-push-url="true">
+      <div class="num">{{ card.count }}</div><div class="label">{{ card.label }}</div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
 <div class="card" id="trough-table">
   {% include "troughs/_table.html" %}
 </div>
+<p class="muted" style="margin-top:1rem">
+  允许的状态迁移：装叶中 → 萎凋中；萎凋中 → 可下槽（最新批次实测含水率已填且 ≤ 40%）；可下槽 → 装叶中。其余迁移一律拒绝。
+</p>
 {% endblock %}
