@@ -22,17 +22,15 @@ def _wants_htmx(request):
 
 @login_required
 def home(request):
+    # 三张状态卡与槽列表的状态过滤同源：全部取自这一次 GROUP BY 计数。
+    counts = Trough.status_counts()
     context = {
         "garden_count": Garden.objects.count(),
         "trough_count": Trough.objects.count(),
         "batch_count": WitherBatch.objects.count(),
-        "ready_count": Trough.objects.filter(status=Trough.STATUS_READY).count(),
-        "withering_count": Trough.objects.filter(
-            status=Trough.STATUS_WITHERING
-        ).count(),
-        "loading_count": Trough.objects.filter(
-            status=Trough.STATUS_LOADING
-        ).count(),
+        "loading_count": counts[Trough.STATUS_LOADING],
+        "withering_count": counts[Trough.STATUS_WITHERING],
+        "ready_count": counts[Trough.STATUS_READY],
     }
     return render(request, "home.html", context)
 
@@ -101,14 +99,34 @@ class TroughListView(LoginRequiredMixin, ListView):
     context_object_name = "troughs"
 
     def get_queryset(self):
-        return Trough.objects.select_related("garden").all()
+        qs = Trough.objects.select_related("garden").all()
+        # 状态过滤：白名单取值，非法值视为不过滤。与首页状态卡共用
+        # Trough.status_counts() 的同一状态列，行数与卡片计数严格一致。
+        status = self.request.GET.get("status")
+        if status in Trough.VALID_STATUSES:
+            qs = qs.filter(status=status)
+        else:
+            status = ""
+        self.current_status = status
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["current_status"] = getattr(self, "current_status", "")
+        context["status_counts"] = Trough.status_counts()
+        context["trough_count_total"] = Trough.objects.count()
+        return context
 
     def get(self, request, *args, **kwargs):
         self.object_list = self.get_queryset()
         if _wants_htmx(request):
             html = render_to_string(
                 "troughs/_table.html",
-                {"troughs": self.object_list},
+                {
+                    "troughs": self.object_list,
+                    "current_status": getattr(self, "current_status", ""),
+                    "status_counts": Trough.status_counts(),
+                },
                 request=request,
             )
             return HttpResponse(html)

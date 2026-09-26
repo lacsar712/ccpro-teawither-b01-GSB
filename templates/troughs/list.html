@@ -5,13 +5,20 @@
   <h1>萎凋槽</h1>
   <div class="actions">
     <button class="btn btn-secondary btn-sm"
-            hx-get="{% url 'trough_list' %}"
+            hx-get="{% url 'trough_list' %}{% if current_status %}?status={{ current_status }}{% endif %}"
             hx-target="#trough-table"
             hx-swap="innerHTML">刷新列表</button>
     <a class="btn" href="{% url 'trough_create' %}">新建槽位</a>
   </div>
 </div>
+<div class="filter-bar">
+  <a class="chip {% if not current_status %}chip-active{% endif %}" href="{% url 'trough_list' %}">全部 {{ trough_count_total }}</a>
+  <a class="chip chip-loading {% if current_status == 'loading' %}chip-active{% endif %}" href="{% url 'trough_list' %}?status=loading">装叶中 {{ status_counts.loading }}</a>
+  <a class="chip chip-withering {% if current_status == 'withering' %}chip-active{% endif %}" href="{% url 'trough_list' %}?status=withering">萎凋中 {{ status_counts.withering }}</a>
+  <a class="chip chip-ready {% if current_status == 'ready' %}chip-active{% endif %}" href="{% url 'trough_list' %}?status=ready">可下槽 {{ status_counts.ready }}</a>
+</div>
 <div class="card" id="trough-table">
   {% include "troughs/_table.html" %}
 </div>
+<p class="muted" style="margin-top:1rem">允许的状态迁移：{{ trough_transition_edges|join:"、" }}；非法迁移一律拒绝。迁入「可下槽」须最新批次实测含水率已填且 ≤ {{ trough_ready_moisture_limit }}%。</p>
 {% endblock %}

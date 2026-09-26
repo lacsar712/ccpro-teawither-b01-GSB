@@ -16,7 +16,7 @@
     </div>
     {% endfor %}
     {{ form.non_field_errors }}
-    <p class="muted">设为「可下槽」时，最新批次实测含水率须已填且 ≤ 40%。</p>
+    <p class="muted">允许的状态迁移：{{ trough_transition_edges|join:"、" }}；其余选择一律拒绝。迁入「可下槽」还要求最新批次实测含水率已填且 ≤ {{ trough_ready_moisture_limit }}%。</p>
     <button class="btn" type="submit">保存</button>
   </form>
 </div>

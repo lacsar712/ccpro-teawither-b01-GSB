@@ -26,6 +26,20 @@ class TroughForm(forms.ModelForm):
             "status": forms.Select(attrs={"class": "input"}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # 渲染层只给合法目标，避免误选；字段层仍接受所有已知状态码，
+        # 这样绕过页面伪造 POST 时，错误由模型唯一的 clean() 给出
+        # 权威中文说明，而不是通用的“选项无效”。
+        current = self.instance.status if self.instance.pk else None
+        allowed = Trough.allowed_target_statuses(current)
+        self.fields["status"].choices = Trough.STATUS_CHOICES
+        self.fields["status"].widget.choices = [
+            (code, label)
+            for code, label in Trough.STATUS_CHOICES
+            if code in allowed
+        ]
+
 
 class WitherBatchForm(forms.ModelForm):
     class Meta:

@@ -295,3 +295,59 @@ table.data tr:hover td {
   text-align: center;
   color: var(--muted);
 }
+
+a.stat-link {
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+a.stat-link:hover {
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgba(35, 79, 44, 0.18);
+  transform: translateY(-1px);
+}
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.chip {
+  display: inline-block;
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted);
+  font-size: 0.88rem;
+  text-decoration: none !important;
+}
+
+.chip:hover {
+  border-color: var(--tea-green);
+  color: var(--tea-green-dark);
+}
+
+.chip-active {
+  background: var(--tea-green);
+  border-color: var(--tea-green);
+  color: #fff !important;
+}
+
+.chip-loading.chip-active {
+  background: #b8860b;
+  border-color: #b8860b;
+}
+
+.chip-withering.chip-active {
+  background: var(--tea-green);
+  border-color: var(--tea-green);
+}
+
+.chip-ready.chip-active {
+  background: #1c6dd0;
+  border-color: #1c6dd0;
+}
